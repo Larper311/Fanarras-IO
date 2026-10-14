@@ -372,3 +372,10 @@ function pick(c){if(P&&!P.dead&&avail(P).includes(c)){setCls(P,c);recalc(P)}}
 onkeydown=e=>{const k=e.key.toLowerCase();K[k]=1;if(k===' '||k==='tab')e.preventDefault();if(!P||P.dead)return;
  if(k>='0'&&k<='9')spend(k==='0'?9:+k-1);if(k==='e')auto^=1;if(k==='c')spin^=1;if(k==='k'&&P.lv<45){P.score=xpTo(P.lv+1);gain(P,0)}
  const i=UK.indexOf(k);if(i>=0){const a=avail(P);if(a[i])pick(a[i])}};
+onkeyup=e=>K[e.key.toLowerCase()]=0;onmousemove=e=>{ms.x=e.clientX;ms.y=e.clientY};oncontextmenu=e=>e.preventDefault();onmouseup=e=>{e.button?mdR=0:mdL=0};
+onmousedown=e=>{if(e.target!==cv)return;if(!e.button)for(const u of ui)if(ms.x>=u.x&&ms.x<=u.x+u.w&&ms.y>=u.y&&ms.y<=u.y+u.h){u.f();return}e.button?mdR=1:mdL=1};
+const go=m=>{document.getElementById('m').style.display='none';world(m,1,document.getElementById('nm').value.trim().slice(0,14)||'Unnamed');auto=spin=0};
+document.getElementById('b1').onclick=()=>go('ffa');document.getElementById('b2').onclick=()=>go('tdm');document.getElementById('b3').onclick=()=>go('siege');
+world('ffa',0);let last=performance.now();
+(function loop(ts){const dt=Math.min(.033,(ts-last)/1000);last=ts;now+=dt;try{update(dt);draw()}catch(err){console.error(err)}requestAnimationFrame(loop)})(last);
+</script></body></html>
