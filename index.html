@@ -5,14 +5,14 @@
 #m input{padding:10px;font-size:18px;width:260px;text-align:center;border:3px solid #555;border-radius:6px;outline:0}
 #m button{padding:10px 24px;font-size:18px;font-weight:700;color:#fff;background:#00b2e1;border:3px solid #0083a8;border-radius:6px;cursor:pointer;margin:0 4px}#m button:hover{filter:brightness(1.15)}
 </style></head><body><canvas id="c"></canvas>
-<div id="m"><h1>TANK ARENA</h1><p id="msg">Defend the Core in Siege Blitz against unique sentries, elites and legendary bosses. Free-for-All has giant bosses. Growth has no level cap.</p><input id="nm" maxlength="14" placeholder="Your name"><div><button id="b1">Free-for-All</button><button id="b2">2 Teams</button><button id="b3" style="background:#f14e54;border-color:#a8262c">Siege Blitz</button></div>
+<div id="m"><h1>TANK ARENA</h1><p id="msg">Defend the Core in Siege Blitz against unique sentries, elites and legendary bosses. Free-for-All & Growth feature massive maps + Hornet Nests (destroy for huge XP, but the Queen will emerge!). Growth has no level cap.</p><input id="nm" maxlength="14" placeholder="Your name"><div><button id="b1">Free-for-All</button><button id="b2">2 Teams</button><button id="b3" style="background:#f14e54;border-color:#a8262c">Siege Blitz</button></div>
 <p>WASD move · Mouse aim · Click / Space fire · Right-click repel drones · E auto-fire · C auto-spin<br>1-0 spend points · Y U I H J B N M L O pick upgrade · K = free level</p></div>
 <script>
 'use strict';
 const cv=document.getElementById('c'),g=cv.getContext('2d');let W,H;function rz(){cv.width=W=innerWidth;cv.height=H=innerHeight}onresize=rz;rz();
 const R=Math.random,rr=(a,b)=>a+R()*(b-a),PI=Math.PI,TAU=PI*2,hy=Math.hypot,cl=(v,a,b)=>v<a?a:v>b?b:v,ri=a=>a[R()*a.length|0];
 const ad=(a,b)=>{let d=(b-a)%TAU;if(d>PI)d-=TAU;if(d<-PI)d+=TAU;return d};
-const MAP=5000,CS=250,NS=260,rgb=h=>{const n=parseInt(h.slice(1),16);return[n>>16,n>>8&255,n&255]};
+let MAP=5000,CS=250,NS=260;const rgb=h=>{const n=parseInt(h.slice(1),16);return[n>>16,n>>8&255,n&255]};
 const dk=h=>'rgb('+rgb(h).map(v=>v*.68|0)+')',lt=h=>'rgb('+rgb(h).map(v=>v+(255-v)*.55|0)+')';
 /* ===== CLASS TREE ===== */
 const CL={},UP={},LV=[0,1,15,30,45];
@@ -90,11 +90,47 @@ function spawnBot(team){const tdm=MODE==='tdm';if(team==null&&tdm)team=ents.filt
 const SH={sq:[4,22,12,10,'#ffe46b',6],tr:[3,25,30,25,'#fc7677',10],pe:[5,42,110,130,'#768dfc',16],al:[5,105,1600,3000,'#7e69f0',30]};
 function mkShape(){const q=R(),k=q<.72?'sq':q<.94?'tr':q<.995||ents.filter(e=>e.k==='al').length>2?'pe':'al',d=SH[k];
  ents.push({id:id++,sh:1,k,n:d[0],r:d[1],hp:d[2],mhp:d[2],xp:d[3],col:d[4],bd:d[5],x:rr(d[1]+20,MAP-d[1]-20),y:rr(d[1]+20,MAP-d[1]-20),vx:0,vy:0,rot:rr(0,TAU),vr:rr(.1,.4)*(R()<.5?-1:1),fl:0,dead:0,age:0})}
+/* ===== HORNET NESTS + QUEEN ===== */
+function spawnHornetNest(){
+ const r=48,x=rr(r+300,MAP-r-300),y=rr(r+300,MAP-r-300);
+ const nest={id:id++,sh:1,k:'hn',n:6,r,hp:2200,mhp:2200,xp:8500,col:'#c0392b',bd:18,x,y,vx:0,vy:0,rot:rr(0,TAU),vr:.15,fl:0,dead:0,age:0,nest:1,drones:[],nt:0,queen:0};
+ ents.push(nest);
+ // initial orbiting worker drones (small red triangles)
+ for(let i=0;i<8;i++){
+  const a=i*TAU/8,d=nest.r*2.1+rr(0,18);
+  dn.push({x:nest.x+Math.cos(a)*d,y:nest.y+Math.sin(a)*d,vx:0,vy:0,r:11,dmg:11,pool:45,life:999,o:nest,col:'#e74c3c',ty:'d',hc:0,ph:a,ang:a,sp:280,pg:3,nestD:1,orad:1.8+R()*.4});
+  nest.drones.push(dn[dn.length-1]);
+ }
+ return nest;
+}
+function spawnHornetQueen(nx,ny,src){
+ const q={id:id++,queen:1,x:nx,y:ny,vx:0,vy:0,r:78,hp:9200,mhp:9200,team:null,name:'Hornet Queen',col:'#c0392b',score:18000,lv:40,kills:0,bdm:38,ph:0,lph:0,rot:0,fl:0,dead:0,nd:0,nt:1.8,ni:0,ta:[],cd:[],nh:9,tg:null,ait:0,sd:R()<.5?1:-1,age:0,shd:0,def:{nm:'Hornet Queen',n:3,r:78,col:'#c0392b',c2:'#ff6b6b',sp:.7,spd:95,keep:380,np:2.8,dm:38,
+  tu:[
+   {a:0,d:0,L:1.35,w:.55,rt:.55,v:880,dm:28,z:15,k:1,c:2,sp:.18},
+   {a:.55,d:.75,L:.85,w:.32,rt:.32,v:720,dm:14,z:10,k:1},
+   {a:-.55,d:.75,L:.85,w:.32,rt:.32,v:720,dm:14,z:10,k:1},
+   {a:PI,d:.6,L:.7,w:.4,rt:.9,v:420,dm:12,ty:'d',pg:3,z:13,lm:1},
+   {a:2.1,d:.9,L:.55,w:.28,rt:.28,v:680,dm:11,lm:1,z:9},
+   {a:-2.1,d:.9,L:.55,w:.28,rt:.28,v:680,dm:11,lm:1,z:9}
+  ],
+  nv:b=>{nova(b,10+b.ph*4,380,14,3,b.ni*.3,12);if(b.ph)for(let i=0;i<4;i++){const a=rr(0,TAU);dn.push({x:b.x+Math.cos(a)*b.r,y:b.y+Math.sin(a)*b.r,vx:Math.cos(a)*320,vy:Math.sin(a)*320,r:12,dmg:13,pool:50,life:18,o:b,col:'#e74c3c',ty:'d',hc:0,ph:a,ang:a,sp:300,pg:3,nestD:1})};shk=Math.max(shk,12)}
+ }};
+ q.def.tu.forEach((t,i)=>{q.ta[i]=q.rot*(t.lm||1)+t.a});
+ ents.push(q);shk=18;note='HORNET QUEEN EMERGES!';noteT=3.5;
+ if(src)gain(src,q.score*.2);
+ return q;
+}
 function world(mode,withP,name){MODE=mode;ents=[];bl=[];dn=[];fx=[];rq=[];P=null;core=null;bossT=100;shk=0;id=0;
- const shapeCount=mode==='siege'?5:NS;for(let i=0;i<shapeCount;i++)mkShape();
- if(withP){const sg=mode==='siege',tm=sg?0:mode==='tdm'?(R()<.5?0:1):null;P=mk(sg?MAP/2+rr(-160,160):tm===null?rr(600,MAP-600):tm?MAP-400:400,sg?MAP/2+rr(-160,160):rr(600,MAP-600),'basic',name||'Unnamed',tm===null?TC[0]:TC[tm],tm,0);ents.push(P);cam.x=P.x;cam.y=P.y}
+ // Massive maps for FFA & Growth so there are actually safe zones
+ MAP = mode==='growth' ? 22000 : mode==='ffa' ? 14000 : mode==='tdm' ? 9000 : 6500;
+ NS = mode==='growth' ? 480 : mode==='ffa' ? 380 : mode==='tdm' ? 220 : 80;
+ CS = MAP > 10000 ? 400 : 250;
+ const shapeCount=mode==='siege'?8:NS;for(let i=0;i<shapeCount;i++)mkShape();
+ // Spawn a few Hornet Nests in open modes
+ if(mode==='ffa'||mode==='growth'){for(let i=0;i<(mode==='growth'?7:4);i++)spawnHornetNest()}
+ if(withP){const sg=mode==='siege',tm=sg?0:mode==='tdm'?(R()<.5?0:1):null;P=mk(sg?MAP/2+rr(-160,160):tm===null?rr(800,MAP-800):tm?MAP-500:500,sg?MAP/2+rr(-160,160):rr(800,MAP-800),'basic',name||'Unnamed',tm===null?TC[0]:TC[tm],tm,0);ents.push(P);cam.x=P.x;cam.y=P.y}
  if(mode==='siege'){initSiege();for(let i=0;i<4+((R()*3)|0);i++)spawnFriendly()}
- else for(let i=0;i<(mode==='tdm'?20:24);i++)spawnBot(mode==='tdm'?i%2:null)}
+ else for(let i=0;i<(mode==='tdm'?22:28);i++)spawnBot(mode==='tdm'?i%2:null)}
 /* ===== UNIQUE SENTRY + ELITE + BOSS DEFINITIONS ===== */
 const SENTRIES={
 'Spike Sentry':{nm:'Spike Sentry',n:6,r:48,hp:1100,col:'#c0392b',c2:'#e74c3c',sp:.75,spd:120,keep:290,np:3.0,dm:20,
@@ -194,9 +230,17 @@ function each(x,y,rad,fn){const i0=Math.max(0,(x-rad)/CS|0),i1=Math.min(19,(x+ra
  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const a=G.get(i*20+j);if(a)for(let k=0;k<a.length;k++)fn(a[k])}}
 function near(x,y,rad,me,sh){let b=null,bd=rad*rad;each(x,y,rad+MR,e=>{if(!e||e===me||e.dead||(e.sh&&!sh)||(me&&me.team!=null&&e.team===me.team))return;const d=(e.x-x)**2+(e.y-y)**2;if(d<bd){bd=d;b=e}});return b}
 function hurt(e,d,src){if(!e||e.dead||d<=0)return;if(e===P)shk=Math.max(shk,Math.min(11,d*.17));e.fl=.12;if(!e.sh){e.nh=0;if(e.shd>0){const a=Math.min(e.shd,d);e.shd-=a;d-=a}}e.hp-=d;if(e.hp<=0)die(e,src)}
-function die(e,src){if(!e)return;e.dead=1;fx.push({x:e.x,y:e.y,r:e.r,col:e.col,n:e.sh?e.n:(e.elite||e.bo||e.sentry?e.def.n:0),rot:e.rot||0,l:.45,m:.45,cs:e.sh||e.bo||e.elite||e.sentry?0:e.c,ang:e.ang});
+function die(e,src){if(!e)return;e.dead=1;fx.push({x:e.x,y:e.y,r:e.r,col:e.col,n:e.sh?e.n:(e.elite||e.bo||e.sentry||e.queen?e.def?e.def.n:3:0),rot:e.rot||0,l:.45,m:.45,cs:e.sh||e.bo||e.elite||e.sentry||e.queen?0:e.c,ang:e.ang});
  if(src&&!src.dead){if(e.sh)gain(src,e.xp||0);else{gain(src,Math.max(80,e.score*.38));src.kills=(src.kills||0)+1;if(src===P){note='You killed '+e.name;noteT=2}}}
- if(e.bo||e.elite||e.sentry){for(let i=0;i<(e.bo?12:e.elite?8:4);i++){const l=.28+i*.05;fx.push({x:e.x+rr(-e.r,e.r),y:e.y+rr(-e.r,e.r),r:rr(18,65),col:i%2?e.def.col:'#fff',n:0,l,m:l,bu:1})}shk=e.bo?28:e.elite?15:7;if(e.bo||e.elite){note=e.name+' DESTROYED!';noteT=3}return}
+ if(e.nest){ // Hornet Nest broken → big XP + Queen emerges
+  for(let i=0;i<10;i++)fx.push({x:e.x+rr(-e.r,e.r),y:e.y+rr(-e.r,e.r),r:rr(12,40),col:i%2?'#e74c3c':'#fff',n:0,l:.35+i*.03,m:.5,bu:1});
+  shk=16;note='Hornet Nest destroyed! Queen incoming...';noteT=3;
+  spawnHornetQueen(e.x,e.y,src);
+  // kill remaining nest drones
+  for(const d of (e.drones||[]))if(d)d.pool=0;
+  return;
+ }
+ if(e.bo||e.elite||e.sentry||e.queen){for(let i=0;i<(e.bo||e.queen?12:e.elite?8:4);i++){const l=.28+i*.05;fx.push({x:e.x+rr(-e.r,e.r),y:e.y+rr(-e.r,e.r),r:rr(18,65),col:i%2?(e.def?e.def.col:e.col):'#fff',n:0,l,m:l,bu:1})}shk=e.bo||e.queen?28:e.elite?15:7;if(e.bo||e.elite||e.queen){note=e.name+' DESTROYED!';noteT=3}return}
  if(e.sh)return;
  if(e===P&&MODE==='siege'&&!S.over){P.score=0;P.lv=1;P.sp=0;P.st=Array(10).fill(0);P.kills=0;setCls(P,'basic');recalc(P);P.hp=P.mhp;P.shd=0;rq.push({t:3,pl:1});note='Full reset — choose a new path!';noteT=3;return}
  if(e===P){const m=document.getElementById('m');document.getElementById('msg').textContent=(src&&src.name?'Killed by '+src.name+' — ':'')+'Score '+(P.score|0)+' · Level '+P.lv+' · '+(P.c?P.c.nm:'Basic');m.style.display='flex'}
@@ -212,7 +256,7 @@ function ai(t,dt){if(!t)return[0,0,0,0];t.ait-=dt;
   let e=near(t.x,t.y,MODE==='siege'&&t.team===0?9000:900,t,0);
   if(e&&e===core)e=null;
   t.thr=null;
-  if(e){t.tg=e;if((e.bo||e.elite||e.sentry||e.lv>t.lv*1.55+3||t.hp<t.mhp*.24)&&!t.c.o.sm&&!t.noup&&!(MODE==='siege'&&t.team===0&&t.hp>t.mhp*.3))t.thr=e}
+  if(e){t.tg=e;if((e.bo||e.elite||e.sentry||e.queen||e.lv>t.lv*1.55+3||t.hp<t.mhp*.24)&&!t.c.o.sm&&!t.noup&&!(MODE==='siege'&&t.team===0&&t.hp>t.mhp*.3))t.thr=e}
   else {
     // friendlies look for enemies first, then shapes
     t.tg = t.team===0 ? near(t.x,t.y,1400,t,1) : (t.team===0&&core&&!core.dead?core:near(t.x,t.y,1200,t,1));
@@ -225,7 +269,7 @@ function ai(t,dt){if(!t)return[0,0,0,0];t.ait-=dt;
   if(R()<.25)t.sd*=-1}
  const tg=t.tg&&!t.tg.dead?t.tg:null,o=t.c.o||{};let mx=0,my=0,aim=t.ang,f=0;
  if(tg){const dx=tg.x-t.x,dy=tg.y-t.y,d=hy(dx,dy)||1,tt=Math.min(1,d/520);aim=Math.atan2(dy+(tg.vy||0)*tt,dx+(tg.vx||0)*tt);
-  const R0=o.sm?30:tg.sh?210:360*(o.fov||1)*(o.dr?1.08:1)+(tg.bo||tg.elite||tg.sentry?tg.r:0),ux=dx/d,uy=dy/d,sdv=tg.sh?0:.6;let dir=d>R0*1.1?1:d<R0*.55?-1:0;if(t.thr)dir=-1.1;
+  const R0=o.sm?30:tg.sh?210:360*(o.fov||1)*(o.dr?1.08:1)+(tg.bo||tg.elite||tg.sentry||tg.queen?tg.r:0),ux=dx/d,uy=dy/d,sdv=tg.sh?0:.6;let dir=d>R0*1.1?1:d<R0*.55?-1:0;if(t.thr)dir=-1.1;
   mx=ux*dir-uy*t.sd*sdv;my=uy*dir+ux*t.sd*sdv;f=!o.sm&&Math.abs(ad(t.ang,aim))<.3&&d<R0*2+tg.r?1:0}
  else if(t.wp){const dx=t.wp[0]-t.x,dy=t.wp[1]-t.y,d=hy(dx,dy)||1;mx=dx/d*.7;my=dy/d*.7;aim=Math.atan2(dy,dx)}
  return[mx,my,aim,f]}
@@ -259,8 +303,16 @@ function drones(dt){for(let i=dn.length-1;i>=0;i--){const d=dn[i];if(!d){dn.spli
  if(d.ty==='d'){let tg=null,fl=0;
   if(o===P){if(mdR)fl=1;else if(mdL||auto)tg=near(mw.x,mw.y,340,o,1)||{x:mw.x,y:mw.y}}else if(o.tg&&!o.tg.dead)tg=o.tg;
   if(!tg&&!fl)tg=near(o.x,o.y,450,o,1);
+  // Nest worker drones: orbit nest, attack nearby tanks
+  if(d.nestD&&o&&o.nest&&!o.dead){
+    const e=near(o.x,o.y,520,o,0);
+    if(e&&!e.sh){tg=e}else{
+      const baseR=o.r*(d.orad||2)+22,ang=d.ph+now*1.15;
+      tg={x:o.x+Math.cos(ang)*baseR,y:o.y+Math.sin(ang)*baseR};
+    }
+  }
   // Better orbit with unique radius so drones don't stack
-  if(d.orbit&&(o.bo||o.elite||o.sentry)){
+  if(d.orbit&&(o.bo||o.elite||o.sentry||o.queen)){
     const baseR = o.r * (d.orad || 1.15) + 28;
     const ang = d.ph + now * 0.85;
     const tx = o.x + Math.cos(ang) * baseR;
@@ -282,11 +334,18 @@ function collide(dt){for(const a of ents){if(!a||a.dead)continue;each(a.x,a.y,a.
  const nx=dx/d,ny=dy/d,ov=m-d,ma=a.r*a.r,mb=b.r*b.r,ta=ma/(ma+mb);a.x-=nx*ov*(1-ta);a.y-=ny*ov*(1-ta);b.x+=nx*ov*ta;b.y+=ny*ov*ta;a.vx-=nx*ov*4.5*(1-ta);a.vy-=ny*ov*4.5*(1-ta);b.vx+=nx*ov*4.5*ta;b.vy+=ny*ov*4.5*ta;
  if(!a.sh&&!b.sh){if(a.team!=null&&a.team===b.team)return;hurt(a,(b.bdm||8)*dt*5.8,b);hurt(b,(a.bdm||8)*dt*5.8,a)}
  else if(a.sh!==b.sh){const t=a.sh?b:a,s=a.sh?a:b;if(s.team!=null&&s.team===t.team)return;hurt(s,(t.bdm||8)*dt*5.8,t);hurt(t,(s.bd||6)*dt*1.9,null)}})}}
-function update(dt){DT=dt;MR=ents.some(e=>e&&(e.bo||e.elite||e.sentry))?240:100;build();
- for(const t of ents){if(!t||t.dead||t.sh)continue;if(t.bo||t.elite||t.sentry)stepBoss(t,dt);else stepTank(t,dt)}
+function update(dt){DT=dt;MR=ents.some(e=>e&&(e.bo||e.elite||e.sentry||e.queen))?240:100;build();
+ for(const t of ents){if(!t||t.dead||t.sh)continue;if(t.bo||t.elite||t.sentry||t.queen)stepBoss(t,dt);else stepTank(t,dt)}
  bullets(dt);drones(dt);collide(dt);
  if(MODE==='siege'&&P&&!P.dead&&P.x<150)hurt(P,9999,null);
- let ns=0;for(const s of ents){if(!s||!s.sh||s.dead)continue;ns++;if(s===core){s.x=MAP/2;s.y=MAP/2;s.vx=s.vy=0;continue}s.age+=dt;s.rot+=s.vr*dt;s.fl-=dt;s.vx+=rr(-1,1)*7*dt;s.vy+=rr(-1,1)*7*dt;s.x=cl(s.x+s.vx*dt,s.r,MAP-s.r);s.y=cl(s.y+s.vy*dt,s.r,MAP-s.r);const f=Math.pow(.2,dt);s.vx*=f;s.vy*=f}
+ let ns=0;for(const s of ents){if(!s||!s.sh||s.dead)continue;ns++;if(s===core){s.x=MAP/2;s.y=MAP/2;s.vx=s.vy=0;continue}
+ if(s.nest){s.age+=dt;s.rot+=s.vr*dt;s.fl-=dt;s.vx*=.9;s.vy*=.9; // nests stay put
+  // slowly replenish workers if low
+  if((s.drones||[]).filter(d=>d&&d.pool>0).length<6&&R()<dt*.4){const a=rr(0,TAU),d=s.r*2.2;
+   const nd={x:s.x+Math.cos(a)*d,y:s.y+Math.sin(a)*d,vx:0,vy:0,r:11,dmg:11,pool:45,life:999,o:s,col:'#e74c3c',ty:'d',hc:0,ph:a,ang:a,sp:280,pg:3,nestD:1,orad:1.8+R()*.4};
+   dn.push(nd);s.drones.push(nd)}
+  continue}
+ s.age+=dt;s.rot+=s.vr*dt;s.fl-=dt;s.vx+=rr(-1,1)*7*dt;s.vy+=rr(-1,1)*7*dt;s.x=cl(s.x+s.vx*dt,s.r,MAP-s.r);s.y=cl(s.y+s.vy*dt,s.r,MAP-s.r);const f=Math.pow(.2,dt);s.vx*=f;s.vy*=f}
  ents=ents.filter(e=>e&&!e.dead);if(MODE!=='siege'&&ns<NS&&R()<dt*8)mkShape();
  if(MODE==='siege'&&core&&!S.over)siegeTick(dt);
  if(MODE==='ffa'&&P&&!P.dead&&(bossT-=dt)<=0&&!ents.some(e=>e&&e.bo)){const n=ri(Object.keys(BD).filter(k=>k!=='APEX'));spawnBoss(n);note='WARNING: '+n+' has appeared!';noteT=4;bossT=90}
@@ -338,15 +397,15 @@ function draw(){ui.length=0;g.setTransform(1,0,0,1,0,0);g.fillStyle='#b4b4b4';g.
  for(const b of bl)if(b&&on(b.x,b.y,26)){const al=Math.min(1,b.life*4.5);g.globalAlpha=al*.25;g.beginPath();g.moveTo(b.x,b.y);g.lineTo(b.x-b.vx*.028,b.y-b.vy*.028);g.strokeStyle=b.col;g.lineWidth=b.r*1.15;g.stroke();g.globalAlpha=al;g.strokeStyle=dk(b.col);g.lineWidth=Math.max(1.3,b.r*.26);g.fillStyle=b.col;
   if(b.pg){g.save();g.translate(b.x,b.y);g.rotate(b.life*5.5);poly(g,b.pg,b.r*1.2,0);g.fill();g.stroke();g.restore()}else{g.beginPath();g.arc(b.x,b.y,b.r,0,TAU);g.fill();g.stroke()}g.globalAlpha=1}
  for(const d of dn)if(d&&d.ty==='d'&&on(d.x,d.y,26)){g.save();g.translate(d.x,d.y);g.rotate(d.pg>3?now*2.6:d.ang);poly(g,d.pg||3,d.r*1.32,d.pg>3?0:PI/2);g.fillStyle=d.col;g.strokeStyle=dk(d.col);g.lineWidth=1.8;g.fill();g.stroke();g.restore()}
- for(const t of ents)if(t&&!t.sh&&!t.bo&&!t.elite&&!t.sentry&&on(t.x,t.y,90)){g.globalAlpha=Math.min(1,t.age*1.3)*(t.c&&t.c.o.cl?(t===P?.48:hy(t.vx,t.vy)<32?.18:1):1);drawTank(g,t.c,t.col,t.x,t.y,t.r,t.ang,t.fl,t.rcl,t.spin,t.tu);g.globalAlpha=1;
+ for(const t of ents)if(t&&!t.sh&&!t.bo&&!t.elite&&!t.sentry&&!t.queen&&on(t.x,t.y,90)){g.globalAlpha=Math.min(1,t.age*1.3)*(t.c&&t.c.o.cl?(t===P?.48:hy(t.vx,t.vy)<32?.18:1):1);drawTank(g,t.c,t.col,t.x,t.y,t.r,t.ang,t.fl,t.rcl,t.spin,t.tu);g.globalAlpha=1;
   if(t.shd>0){g.beginPath();g.arc(t.x,t.y,t.r+4.5,0,TAU);g.strokeStyle='rgba(120,190,255,'+(.2+.45*t.shd/t.msh)+')';g.lineWidth=3.2;g.stroke()}
   if(t.hp<t.mhp){g.fillStyle='#0007';g.fillRect(t.x-t.r*.7,t.y+t.r+8,t.r*1.4,4.5);g.fillStyle='#86c880';g.fillRect(t.x-t.r*.7,t.y+t.r+8,t.r*1.4*t.hp/t.mhp,4.5)}
   T(t.name,t.x,t.y-t.r-11,Math.max(10,t.r*.5),'center',t===P?'#fff':'#eee')}
- for(const b of ents)if(b&&(b.bo||b.elite||b.sentry)&&on(b.x,b.y,b.r*1.35)){drawSpecial(b);T(b.name,b.x,b.y-b.r*1.32,b.sentry?15:b.elite?18:28,'center',b.def.c2)}
+ for(const b of ents)if(b&&(b.bo||b.elite||b.sentry||b.queen)&&on(b.x,b.y,b.r*1.35)){drawSpecial(b);T(b.name,b.x,b.y-b.r*1.32,b.sentry?15:b.elite?18:b.queen?22:28,'center',b.def.c2)}
  for(const f of fx){if(!f)continue;const p=1-f.l/f.m;g.save();g.translate(f.x,f.y);g.globalAlpha=Math.max(0,1-p);const k=1+p*(f.bu?.8:.32);g.scale(k,k);
   if(f.cs)drawTank(g,f.cs,f.col,0,0,f.r,f.ang,1,0,0,null);else if(f.n){g.rotate(f.rot);poly(g,f.n,f.r,0);g.fillStyle=f.col;g.fill();g.strokeStyle=dk(f.col);g.lineWidth=1.8;g.stroke()}else{g.beginPath();g.arc(0,0,f.r,0,TAU);g.fillStyle=f.col;g.fill()}g.restore()}
  g.strokeStyle='#555';g.lineWidth=6;g.strokeRect(0,0,MAP,MAP);g.setTransform(1,0,0,1,0,0);hud()}
-function hud(){const tk=ents.filter(e=>e&&!e.sh&&!e.bo&&!e.elite&&!e.sentry).sort((a,b)=>b.score-a.score),top=Math.max(1,tk[0]?tk[0].score:1),bo=ents.find(e=>e&&e.bo),el=ents.find(e=>e&&e.elite);
+function hud(){const tk=ents.filter(e=>e&&!e.sh&&!e.bo&&!e.elite&&!e.sentry&&!e.queen).sort((a,b)=>b.score-a.score),top=Math.max(1,tk[0]?tk[0].score:1),bo=ents.find(e=>e&&e.bo),el=ents.find(e=>e&&e.elite);
  T('Leaderboard',W-105,26,16,'center');tk.slice(0,8).forEach((t,i)=>{const y=38+i*20;bar(W-198,y,180,14,t.score/top,t.col);T(t.name+' — '+fs(t.score),W-108,y+11,11,'center',t===P?'#ffe46b':'#fff')});
  const mz=130,mx0=W-mz-8,my0=H-mz-8;g.fillStyle='#0004';g.fillRect(mx0,my0,mz,mz);g.strokeStyle='#333';g.lineWidth=1.8;g.strokeRect(mx0,my0,mz,mz);
  for(const t of tk){g.fillStyle=t===P?'#fff':t.col;const s=t===P?5.5:3;g.fillRect(mx0+t.x/MAP*mz-s/2,my0+t.y/MAP*mz-s/2,s,s)}
@@ -477,7 +536,15 @@ drones=function(dt){for(let i=dn.length-1;i>=0;i--){const d=dn[i];if(!d){dn.spli
   if(o===P){if(mdR)fl=1;else if(mdL||auto)tg=near(mw.x,mw.y,340,o,1)||{x:mw.x,y:mw.y}}else if(o.tg&&!o.tg.dead)tg=o.tg;
   if(!tg&&!fl)tg=near(o.x,o.y,450,o,1);
   if(d.gd&&!fl){const e=near(o.x,o.y,340,o,1);if(e)tg=e;else{const a=d.ph+now*1.5,rad=o.r*(1.9+d.orad*.5);tg={x:o.x+Math.cos(a)*rad,y:o.y+Math.sin(a)*rad}}}
-  if(d.orbit&&(o.bo||o.elite||o.sentry)){const baseR=o.r*(d.orad||1.15)+28,ang=d.ph+now*.85,tx=o.x+Math.cos(ang)*baseR,ty=o.y+Math.sin(ang)*baseR;if(tg&&hy(tg.x-o.x,tg.y-o.y)<480){}else tg={x:tx,y:ty}}
+  // Nest worker drones: orbit nest tightly, attack any nearby tank
+  if(d.nestD&&o&&(o.nest||o.queen)&&!o.dead){
+    const e=near(o.x,o.y,560,o,0);
+    if(e&&!e.sh){tg=e}else{
+      const baseR=o.r*(d.orad||2)+18,ang=d.ph+now*1.2;
+      tg={x:o.x+Math.cos(ang)*baseR,y:o.y+Math.sin(ang)*baseR};
+    }
+  }
+  if(d.orbit&&(o.bo||o.elite||o.sentry||o.queen)){const baseR=o.r*(d.orad||1.15)+28,ang=d.ph+now*.85,tx=o.x+Math.cos(ang)*baseR,ty=o.y+Math.sin(ang)*baseR;if(tg&&hy(tg.x-o.x,tg.y-o.y)<480){}else tg={x:tx,y:ty}}
   let tx,ty;
   if(fl){tx=2*d.x-mw.x;ty=2*d.y-mw.y}else if(tg){tx=tg.x;ty=tg.y}else{const a=d.ph+now*.65;tx=o.x+Math.cos(a)*o.r*2.4;ty=o.y+Math.sin(a)*o.r*2.4}
   let sx=0,sy=0;
@@ -792,7 +859,74 @@ pick=function(c){const was=P&&P.cid;_pk(c);
   if(o.kb)t.push(o.kb>0?'knockback':'drags enemies in');if(o.pull)t.push('gravity pull');if(o.th)t.push('reflects damage');
   if(o.ar)t.push('armored');if(o.hl)t.push('heals allies');if(o.rg)t.push('regen');if(o.rnd)t.push('random damage');
   if(t.length||o.ab){note=CL[c].nm+': '+t.join(', ')+(o.ab?(t.length?' | ':'')+'[Q] '+AN[o.ab]:'');noteT=3.5}}};
-const hp2=document.querySelectorAll('#m p')[1];if(hp2)hp2.innerHTML+='<br>Q = class ability · Levels go to 100 · 100 new classes · drones nerfed';
+const hp2=document.querySelectorAll('#m p')[1];if(hp2)hp2.innerHTML+='<br>Q = class ability · Levels go to 100 · 100+ new classes · drones nerfed · Massive FFA/Growth maps · Hornet Nests!';
+})();
+/* ===== FINAL PATCH: more semi-upgrades + nest polish + cooler FFA/Growth ===== */
+(function(){
+ // More branching / semi-upgrades from existing tanks (extra mid-tier options)
+ const S=(id,nm,tier,from,gs,o)=>C('s_'+id,nm,tier,from,gs,o);
+ // From Twin / Flank family
+ S('twinshot','Twin Shot',3,'twin',[[2.1,.65,-.4],[2.1,.65,.4,0,.4]]);
+ S('flanktwin','Flank Twin',3,'flank,twin',[[1.9,.7],[1.9,.7,0,PI],[1.6,.55,-.5,PI/2,.25],[1.6,.55,.5,-PI/2,.5]]);
+ S('spreadtwin','Spread Twin',3,'twin',[[1.9,.6,-.7],[1.9,.6,.7,0,.5],[1.7,.55,-.35,0,.25],[1.7,.55,.35,0,.75]]);
+ // From Sniper family
+ S('marksman','Marksman',3,'sniper',[[2.9,.7,0,0,0,'b',{r:1.55,s:1.55,d:1.25,p:1.35,z:.82,lf:1.45}]],{fov:1.3});
+ S('scout','Scout',3,'sniper',[[2.5,.7,0,0,0,'b',{r:1.3,s:1.4,d:1.1,p:1.2,z:.8,lf:1.3}]],{fov:1.35,spd:1.08});
+ S('piercer','Piercer',3,'sniper',[[2.8,.55,0,0,0,'b',{r:1.4,s:1.6,d:1.15,p:2.8,z:.7,lf:1.4}]],{fov:1.28});
+ // From Machine / Gunner
+ S('gatling','Gatling',3,'machine',[[1.55,1.15,0,0,0,'b',{r:.38,d:.52,sp:.32,z:.72,rc:.35,fl:1}]]);
+ S('dualgun','Dual Gunner',3,'machine,gunner',[[1.5,.5,-.55],[1.5,.5,.55,0,.5],[1.7,.55,0,0,.25]]);
+ S('spraygun','Spray Gun',3,'machine',[[1.5,1.2,0,0,0,'b',{r:.55,d:.5,sp:.38,z:.78,rc:.45,fl:1}],[1.3,.9,0,.4,.3,'b',{r:.5,d:.45,sp:.3,z:.7}],[1.3,.9,0,-.4,.6,'b',{r:.5,d:.45,sp:.3,z:.7}]]);
+ // From Pounder / Destroyer
+ S('heavy','Heavy',3,'pounder',[[2.05,1.5,0,0,0,'b',{r:2.2,d:2.6,s:.78,z:1.35,p:2,rc:3.2}]]);
+ S('cannon','Cannon',3,'pounder',[[2.2,1.45,0,0,0,'b',{r:2.4,d:2.8,s:.75,z:1.4,p:2.2,rc:3.5}]]);
+ S('mortar','Mortar',3,'pounder',[[1.9,1.6,0,0,0,'b',{r:2.1,d:2.3,s:.7,z:1.5,p:1.8,rc:2.8,ex:6,lf:1.1}]]);
+ // From Trapper
+ S('hextrap','Hex Trap',3,'trapper',ring(3,1.5,.9,'t',TR));
+ S('fortress','Fort Trap',3,'trapper',[[1.5,1.4,0,0,0,'t',{r:1.8,fl:1,z:1.6,p:2.5,lf:1.3}]]);
+ S('spike','Spike Trap',3,'trapper',[[1.5,1,0,0,0,'t',{r:1.2,fl:1,z:1,d:1.6,p:.9,s:1.2}]]);
+ // From Director
+ S('overwatch','Overwatch',3,'director',ring(2,1.25,1.15,'d',{z:.85,s:1.15},PI/2),{dr:7});
+ S('swarm','Swarm Director',3,'director',[[1.25,1.1,0,0,0,'d',{z:.55,s:1.35,r:.5,d:.7}]],{dr:10});
+ S('guard','Guard',3,'director',[[1.2,1.2,0,0,0,'d',{gd:1,z:1,s:1.1,r:1.1}]],{dr:6});
+ // From Smasher / Triangle
+ S('ram','Ram',3,'smasher',[],{sm:1.25,spd:1.02});
+ S('spikebody','Spike Body',3,'smasher',[],{sm:1.15,th:.15});
+ S('boost','Boost Triangle',3,'triangle',[[1.9,.8],[1.15,.65,0,2.5,0,'b',{r:.7,d:.32,rc:7.5,z:.55}],[1.15,.65,0,-2.5,.5,'b',{r:.7,d:.32,rc:7.5,z:.55}]],{spd:1.2});
+ // Extra tier-4 semi bridges
+ S('quadtwin','Quad Twin',4,'s_twinshot,quad',ring(4,1.85,.65,'b',{}));
+ S('pentaflank','Penta Flank',4,'s_flanktwin,penta',fan(5,.36,1.95,.6,{d:.85}));
+ S('railmarks','Rail Marksman',4,'s_marksman,railgun',[[3.15,.65,0,0,0,'b',{r:2.3,s:2.3,d:2.5,p:4,z:.68,lf:1.25,rc:3.2}]],{fov:1.5});
+ S('streamgun','Stream Gunner',4,'s_gatling,stream',[1.45,1.65,1.85,2.05,2.25].map((l,i)=>[l,.5,0,0,i*.18,'b',{r:.48,d:.52,z:.58,s:1.25,sp:.07}]));
+ S('annihcannon','Annih Cannon',4,'s_cannon,annih',[[2.15,1.95,0,0,0,'b',{r:3.5,d:5.2,s:.78,z:2.2,p:3.1,rc:4.8}]]);
+ S('overlordguard','Overlord Guard',4,'s_overwatch,overlord',ring(4,1.2,1.2,'d',{z:.9,s:1.2},PI/2),{dr:9});
+ S('trihex','Tri-Hex Trap',4,'s_hextrap,tritrap',ring(6,1.5,.88,'t',TR));
+ S('smashboost','Smash Boost',4,'s_ram,booster',[],{sm:1.4,spd:1.12});
+
+ // Nest respawn in open modes + visual polish
+ const _uF=update;
+ update=function(dt){_uF(dt);
+  if((MODE==='ffa'||MODE==='growth')&&P&&!P.dead){
+   const nests=ents.filter(e=>e&&e.nest&&!e.dead).length;
+   const want=MODE==='growth'?6:3;
+   if(nests<want&&R()<dt*.15)spawnHornetNest();
+  }
+ };
+ // Cooler nest drawing: glow + inner core
+ // Nest visual polish handled via shape color + minimap markers below
+
+ // Minimap nests
+ const _hF=hud;
+ hud=function(){_hF();
+  if(!P||P.dead)return;
+  const mz=130,mx0=W-mz-8,my0=H-mz-8;
+  for(const e of ents)if(e&&e.nest&&!e.dead){
+   g.fillStyle='#e74c3c';g.beginPath();g.arc(mx0+e.x/MAP*mz,my0+e.y/MAP*mz,4,0,TAU);g.fill();
+  }
+  for(const e of ents)if(e&&e.queen&&!e.dead){
+   g.fillStyle='#ff2d55';g.beginPath();g.arc(mx0+e.x/MAP*mz,my0+e.y/MAP*mz,5.5,0,TAU);g.fill();
+  }
+ };
 })();
 world('ffa',0);let last=performance.now();
 (function loop(ts){const dt=Math.min(.033,(ts-last)/1000);last=ts;now+=dt;try{update(dt);draw()}catch(err){console.error(err)}requestAnimationFrame(loop)})(last);
