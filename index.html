@@ -450,11 +450,11 @@ function die(e,src){e.dead=1;burst(e.x,e.y,e.col,e.sh?8:e.boss?70:20,e.boss?120:
 /* ===== DRONE SYSTEM =====
    A drone spec describes one drone "tier": shape, size, hp, damage, speed, color mode, AI, turrets mounted on it,
    and optionally a child spec (sub) that it keeps spawning (mini drones). Specs nest up to 3 tiers deep. */
-const DDS={shape:3,sz:1,hp:1,dm:1,sp:1,col:'body',ai:'chase',tur:[],sub:null,mn:2,mrl:2.2};
+const DDS={shape:3,sz:1,hp:1,dm:1,sp:1,life:0,col:'body',ai:'chase',tur:[],sub:null,mn:2,mrl:2.2};
 const MAXD=120;
 function mkDrone(o,x,y,vx,vy,r,spec,par,depth,gi,baseSp,gl){
  const st=o.st,bsp=baseSp||(620+st[3]*55),bdm=(4.2+st[5]*2.6)*(o.spamMult||1),tr=spec.tur||[];
- const d={x,y,vx,vy,r:Math.max(3,r),dmg:bdm*1.05*(spec.dm||1),hp:(15+st[4]*9)*(spec.hp||1),o,col:o.col,ang:Math.atan2(vy,vx),sp:bsp*.42*(spec.sp||1)*(par?1.2:1),hc:0,ph:rr(0,TAU),spec,par:par||null,depth,gi,gl:!!gl,nm:0,mc:rr(.4,1.2),ntc:0,ntg:null,tc:0,tt:null,ta:tr.map(t=>Math.atan2(vy,vx)+(t.ma||0)),tcd:tr.map(()=>rr(0,.5)),gone:0};
+ const d={x,y,vx,vy,r:Math.max(3,r),dmg:bdm*1.05*(spec.dm||1),hp:(15+st[4]*9)*(spec.hp||1),mhp:(15+st[4]*9)*(spec.hp||1),life:spec.life||0,o,col:o.col,ang:Math.atan2(vy,vx),sp:bsp*.42*(spec.sp||1)*(par?1.2:1),hc:0,ph:rr(0,TAU),spec,par:par||null,depth,gi,gl:!!gl,nm:0,mc:rr(.4,1.2),ntc:0,ntg:null,tc:0,tt:null,ta:tr.map(t=>Math.atan2(vy,vx)+(t.ma||0)),tcd:tr.map(()=>rr(0,.5)),gone:0};
  dn.push(d);o.ndt=(o.ndt||0)+1;
  if(par)par.nm++;else{o.gnd[gi]=(o.gnd[gi]||0)+1;if(gl)o.nd++}
  return d}
@@ -534,17 +534,19 @@ function bullets(dt){for(let i=bl.length-1;i>=0;i--){const b=bl[i];if(b.fr){cons
  if(!del)for(const e of ents){if(e.dead||e===b.o||(mode==='teams'&&b.o.team!=null&&e.team===b.o.team)||b.h.includes(e))continue;if((e.x-b.x)**2+(e.y-b.y)**2<(e.r+b.r)**2){b.h.push(e);b.pen--;
   if(!(e.shd>0)){if((b.o===P||e===P)&&b.dmg>=1)pop.push({x:e.x+rr(-e.r,e.r)*.6,y:e.y-e.r,t:b.dmg|0,l:.8,c:e===P?'#ff6b6b':'#fff'});if(e===P)shk=Math.min(9,shk+Math.min(3,b.dmg*.12));if(ptc.length<450)burst(b.x,b.y,e.col||'#fff',2,40);snd(b.x,b.y,e.sh?340:220,.06,'triangle',.03)}
   hurt(e,b.dmg,b.o);const q=Math.min(3,b.dmg/10)*.01;if(!e.boss){e.vx+=b.vx*q;e.vy+=b.vy*q}if(b.pen<=0){del=1;break}}}
- if(del){if(b.ex){const rad=55*b.ex;for(const e of ents){if(e.dead||e===b.o||(mode==='teams'&&b.o.team!=null&&e.team===b.o.team))continue;const d=hy(e.x-b.x,e.y-b.y);if(d<rad+e.r)hurt(e,b.dmg*1.4*(1-d/(rad+e.r)),b.o)}burst(b.x,b.y,b.col,18,80);snd(b.x,b.y,90,.25,'sawtooth',.06)}
+ if(!del&&!b.trap)for(const d of dn){if(d.o===b.o||d.hp<=0||(mode==='teams'&&b.o.team!=null&&d.o.team===b.o.team)||b.h.includes(d))continue;if((d.x-b.x)**2+(d.y-b.y)**2<(d.r*1.1+b.r)**2){b.h.push(d);b.pen--;d.hp-=b.dmg;if(ptc.length<450)burst(b.x,b.y,d.col,1,30);if(b.pen<=0){del=1;break}}}
+ if(del){if(b.ex){const rad=55*b.ex;for(const e of ents){if(e.dead||e===b.o||(mode==='teams'&&b.o.team!=null&&e.team===b.o.team))continue;const d=hy(e.x-b.x,e.y-b.y);if(d<rad+e.r)hurt(e,b.dmg*1.4*(1-d/(rad+e.r)),b.o)}for(const dd of dn){if(dd.o===b.o||(mode==='teams'&&b.o.team!=null&&dd.o.team===b.o.team))continue;const q=hy(dd.x-b.x,dd.y-b.y);if(q<rad+dd.r)dd.hp-=b.dmg*1.4*(1-q/(rad+dd.r))}burst(b.x,b.y,b.col,18,80);snd(b.x,b.y,90,.25,'sawtooth',.06)}
   if(fx.length<300)fx.push({x:b.x,y:b.y,r:b.r,col:b.col,n:0,l:.15,m:.15});bl.splice(i,1)}}}
 function drones(dt){for(let i=0;i<dn.length;i++){const a=dn[i];for(let j=i+1;j<dn.length;j++){const b=dn[j];if(a.o!==b.o)continue;const dx=b.x-a.x,dy=b.y-a.y,minD=a.r+b.r+5;if(Math.abs(dx)>minD||Math.abs(dy)>minD)continue;const d=hy(dx,dy)||.01;if(d<minD){const push=(minD-d)*.6,nx=dx/d,ny=dy/d;a.x-=nx*push;a.y-=ny*push;b.x+=nx*push;b.y+=ny*push}}}
  for(let i=dn.length-1;i>=0;i--){const d=dn[i],o=d.o,sp=d.spec;d.hc-=dt;
   if(!o||o.dead||d.hp<=0||(d.par&&d.par.gone)){if(d.hp<=0&&ptc.length<450)burst(d.x,d.y,d.col,4,35);dropDrone(d);dn.splice(i,1);continue}
+  if(d.life>0){d.life-=dt;if(d.life<=0)d.hp=0}
   let tg=null,fl=0;
   if(o===P&&!d.par){if(mdR)fl=1;else if(mdL||auto)tg={x:mw.x,y:mw.y}}
   if(!tg&&!fl){d.ntc-=dt;if(d.ntc<=0){d.ntc=.15+rr(0,.08);d.ntg=d.par?nearest(d.x,d.y,520,o):sp.ai==='guard'?nearest(o.x,o.y,340,o):nearest(o.x,o.y,600,o)}tg=d.ntg&&!d.ntg.dead?d.ntg:null}
   let tx,ty;if(fl){tx=2*d.x-mw.x;ty=2*d.y-mw.y}else if(tg){tx=tg.x;ty=tg.y}else{const an=d.par||o,a=d.ph+now*(.6+d.depth*.35),orr=an.r*(d.par?2.3:2.8);tx=an.x+Math.cos(a)*orr;ty=an.y+Math.sin(a)*orr}
   const dx=tx-d.x,dy=ty-d.y,L=hy(dx,dy)||1,s=Math.min(d.sp,L*4.0),k=Math.min(1,3.8*dt);d.vx+=(dx/L*s-d.vx)*k;d.vy+=(dy/L*s-d.vy)*k;d.x+=d.vx*dt;d.y+=d.vy*dt;if(hy(d.vx,d.vy)>8)d.ang=Math.atan2(d.vy,d.vx);wallPush(d);
-  if(d.hc<=0)for(const e of ents){if(e.dead||e===o||(mode==='teams'&&o.team!=null&&e.team===o.team))continue;if((e.x-d.x)**2+(e.y-d.y)**2<(e.r+d.r)**2){hurt(e,d.dmg,o);d.hp-=Math.max(3,d.dmg*.5);d.hc=.22;break}}
+  if(d.hc<=0)for(const e of ents){if(e.dead||e===o||(mode==='teams'&&o.team!=null&&e.team===o.team))continue;if((e.x-d.x)**2+(e.y-d.y)**2<(e.r+d.r)**2){hurt(e,d.dmg,o);d.hp-=Math.max(2,(e.bdm||e.bd||8)*.6);d.hc=.22;break}}
   const tr=sp.tur;
   if(tr&&tr.length){d.tc-=dt;if(d.tc<=0){d.tc=.2;d.tt=nearest(d.x,d.y,560,o)}
    const tt=d.tt&&!d.tt.dead?d.tt:null,ca=Math.cos(d.ang),sa=Math.sin(d.ang);
@@ -658,7 +660,7 @@ function draw(){ui.length=0;g.setTransform(1,0,0,1,0,0);g.fillStyle='#dcdcdc';g.
  for(const b of bl)if(on(b.x,b.y,20)){g.globalAlpha=Math.min(1,b.life*4);if(b.trap){g.save();g.translate(b.x,b.y);g.rotate(b.rot+now);poly(g,3,b.r*1.5,0);g.fillStyle=b.col;g.strokeStyle=dk(b.col);g.lineWidth=Math.max(1.5,b.r*.2);g.fill();g.stroke();g.restore()}
   else if(b.missile){g.save();g.translate(b.x,b.y);g.rotate(Math.atan2(b.vy,b.vx));g.beginPath();g.moveTo(b.r*1.4,0);g.lineTo(-b.r,.7*b.r);g.lineTo(-b.r,-.7*b.r);g.closePath();g.fillStyle=b.col;g.strokeStyle=dk(b.col);g.lineWidth=2;g.fill();g.stroke();g.restore()}
   else{g.beginPath();g.arc(b.x,b.y,b.r,0,TAU);g.fillStyle=b.col;g.strokeStyle=dk(b.col);g.lineWidth=Math.max(1.3,b.r*.26);g.fill();g.stroke()}g.globalAlpha=1}
- for(const d of dn)if(on(d.x,d.y,d.r*2))drawDrone(g,d.spec,d.col,d.x,d.y,d.r,d.ang,d.ta);
+ for(const d of dn)if(on(d.x,d.y,d.r*2)){drawDrone(g,d.spec,d.col,d.x,d.y,d.r,d.ang,d.ta);if(d.hp<d.mhp&&d.hp>0){const w=Math.max(10,d.r*2);g.fillStyle='#0007';g.fillRect(d.x-w/2,d.y+d.r*1.4+3,w,3);g.fillStyle='#86c880';g.fillRect(d.x-w/2,d.y+d.r*1.4+3,w*d.hp/d.mhp,3)}}
  for(const t of ents){if(t.sh||!on(t.x,t.y,120))continue;
   if(t.boss){drawBoss(t);continue}
   drawTank(g,t.c,t.col,t.x,t.y,t.r,t.ang,t.fl,t.rcl,t.ta);
@@ -747,7 +749,7 @@ function loadCustoms(){
 loadCustoms();
 
 /* ---------- drone spec helpers ---------- */
-const CHILD=()=>({shape:3,sz:1,hp:.6,dm:.7,sp:1.15,col:'body',ai:'chase',tur:[],sub:null,mn:2,mrl:2.2});
+const CHILD=()=>({shape:3,sz:1,hp:.6,dm:.7,sp:1.15,life:0,col:'body',ai:'chase',tur:[],sub:null,mn:2,mrl:2.2});
 const TUR=o=>Object.assign({md:0,ma:0,l:1.3,w:.5,rl:1,dm:1,sc:.05,v:1,sz:1},o||{});
 const DS=o=>Object.assign(cm(DDS),o||{});
 const dsAt=(root,lv)=>{let s=root;for(let i=0;i<lv&&s;i++)s=s.sub;return s||null};
@@ -1003,6 +1005,8 @@ function tmRenderDrone(){
   box.appendChild(mkSl('HP mult',.2,6,.05,()=>s.hp==null?1:s.hp,v=>s.hp=v));
   box.appendChild(mkSl('Damage mult',.2,6,.05,()=>s.dm==null?1:s.dm,v=>s.dm=v));
   box.appendChild(mkSl('Speed mult',.3,2.5,.05,()=>s.sp==null?1:s.sp,v=>s.sp=v));
+  box.appendChild(mkSl('Lifespan (s)',0,60,1,()=>s.life||0,v=>s.life=v));
+  const lh=document.createElement('div');lh.className='hint';lh.textContent='Lifespan 0 = lives until killed. Drones now take damage from enemy bullets, explosions and from touching shapes/tanks.';box.appendChild(lh);
   box.appendChild(mkSel('Color',[['body','Tank color'],['dark','Darker'],['light','Lighter'],['gray','Gray metal'],['accent','Accent gold']],()=>s.col||'body',v=>s.col=v));
   box.appendChild(mkSel('Behavior',[['chase','Chase (hunt far)'],['guard','Guard (stay close)']],()=>s.ai||'chase',v=>s.ai=v));
   if(DSEL.lv<2){
